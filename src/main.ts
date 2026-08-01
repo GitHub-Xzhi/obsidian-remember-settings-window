@@ -68,6 +68,23 @@ interface ElectronWindow {
     isDestroyed(): boolean;
 }
 
+/** Electron 模块的类型声明 */
+interface ElectronModule {
+    BrowserWindow?: {
+        getAllWindows(): ElectronWindow[];
+    };
+    remote?: {
+        BrowserWindow?: {
+            getAllWindows(): ElectronWindow[];
+        };
+    };
+}
+
+/** Obsidian app.setting 的类型声明（非公开 API） */
+interface ObsidianSetting {
+    open(...args: unknown[]): void;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  插件设置类型（存储在 data.json 中，用户通过设置面板修改）
 // ═══════════════════════════════════════════════════════════════════
@@ -130,9 +147,9 @@ const DISPLAY_NAME_KEY = "_displayName";
  * 获取 Electron 模块引用
  * Obsidian 的渲染进程中可通过 window.require("electron") 访问
  */
-function getElectron(): any | null {
+function getElectron(): ElectronModule | null {
     try {
-        return (window as any).require("electron");
+        return (window as unknown as { require: (m: string) => ElectronModule }).require("electron");
     } catch {
         return null;
     }
@@ -147,12 +164,14 @@ function getAllBrowserWindows(): ElectronWindow[] {
         const electron = getElectron();
         if (!electron) return [];
         if (electron.BrowserWindow?.getAllWindows) {
-            return electron.BrowserWindow.getAllWindows() as ElectronWindow[];
+            return electron.BrowserWindow.getAllWindows();
         }
         if (electron.remote?.BrowserWindow?.getAllWindows) {
-            return electron.remote.BrowserWindow.getAllWindows() as ElectronWindow[];
+            return electron.remote.BrowserWindow.getAllWindows();
         }
-    } catch {}
+    } catch {
+        /* Electron API 不可用时返回空列表 */
+    }
     return [];
 }
 
@@ -212,8 +231,9 @@ export default class RememberSettingsWindowPlugin extends Plugin {
     }
 
     onunload(): void {
-        if (this.origSettingOpen && (this.app as any).setting) {
-            (this.app as any).setting.open = this.origSettingOpen;
+        const setting = (this.app as unknown as { setting: ObsidianSetting }).setting;
+        if (this.origSettingOpen && setting) {
+            setting.open = this.origSettingOpen;
         }
         this.detachSettingsWin();
         if (this.detectTimer !== null) {
@@ -343,8 +363,8 @@ export default class RememberSettingsWindowPlugin extends Plugin {
      */
     private detectLocale(): string {
         try {
-            const sysLocale: string =
-                (window as any).moment?.locale?.() ?? "en";
+            const moment = (window as unknown as { moment?: { locale?: () => string } }).moment;
+            const sysLocale = moment?.locale?.() ?? "en";
 
             if (this.locales[sysLocale]) return sysLocale;
 
@@ -352,7 +372,9 @@ export default class RememberSettingsWindowPlugin extends Plugin {
             for (const code of Object.keys(this.locales)) {
                 if (code.startsWith(lang)) return code;
             }
-        } catch { /* moment 不可用时回退 */ }
+        } catch {
+            /* moment 不可用时回退到英文 */
+        }
         return "en";
     }
 
@@ -406,14 +428,14 @@ export default class RememberSettingsWindowPlugin extends Plugin {
     // ══════════════════════════════════════════════════════════════
 
     private hookSettingOpen(): void {
-        const setting = (this.app as any).setting;
+        const setting = (this.app as unknown as { setting: ObsidianSetting }).setting;
         if (!setting || typeof setting.open !== "function") {
             return;
         }
 
         this.origSettingOpen = setting.open.bind(setting);
 
-        setting.open = (...args: any[]) => {
+        setting.open = (...args: unknown[]) => {
             this.settingsOpening = true;
             const result = this.origSettingOpen!.apply(setting, args);
             this.startDetecting();
@@ -475,7 +497,9 @@ export default class RememberSettingsWindowPlugin extends Plugin {
                     x: b.x,
                     y: b.y,
                 };
-            } catch { /* 窗口已被销毁 */ }
+            } catch {
+                /* 窗口已被销毁 */
+            }
         };
 
         /** 拖拽结束时的保存操作 */
@@ -537,7 +561,9 @@ export default class RememberSettingsWindowPlugin extends Plugin {
                     if (!this.settingsWinRef.isDestroyed()) {
                         this.settingsWinRef.removeListener(evt, cb);
                     }
-                } catch {}
+                } catch {
+                    /* 窗口已被销毁或监听器已移除 */
+                }
             }
         }
         this.settingsWinRef = null;
@@ -567,10 +593,12 @@ export default class RememberSettingsWindowPlugin extends Plugin {
         }
 
         if (Object.keys(bounds).length > 0) {
-            requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
                 try {
                     if (!win.isDestroyed()) win.setBounds(bounds);
-                } catch {}
+                } catch {
+                    /* 窗口已被销毁 */
+                }
             });
         }
     }
@@ -587,12 +615,12 @@ class SettingsWindowSettingTab extends PluginSettingTab {
         this.plugin = plugin;
     }
 
-    async display(): Promise<void> {
+    display(): void {
         const { containerEl } = this;
         containerEl.empty();
 
-        // 每次打开面板时实时重扫 locale/ 目录，新增语言文件即刻生效
-        await this.plugin.rescanLocales();
+        // 每次打开面板时实时重扫 locale/ 目录（后台执行，不阻塞 UI 渲染）
+        void this.plugin.rescanLocales();
 
         const tr = (key: string) => this.plugin.i18n(key);
 
@@ -614,7 +642,7 @@ class SettingsWindowSettingTab extends PluginSettingTab {
                     .onChange(async (v) => {
                         this.plugin.settings.language = v;
                         await this.plugin.saveSettings();
-                        this.display();
+                        void this.update();
                     }),
             );
 
@@ -674,7 +702,7 @@ class SettingsWindowSettingTab extends PluginSettingTab {
                     .onClick(async () => {
                         this.plugin.settings.defaultWidth = DEFAULT_SETTINGS.defaultWidth;
                         await this.plugin.saveSettings();
-                        this.display();
+                        void this.update();
                     }),
             );
 
@@ -699,7 +727,7 @@ class SettingsWindowSettingTab extends PluginSettingTab {
                     .onClick(async () => {
                         this.plugin.settings.defaultHeight = DEFAULT_SETTINGS.defaultHeight;
                         await this.plugin.saveSettings();
-                        this.display();
+                        void this.update();
                     }),
             );
     }
