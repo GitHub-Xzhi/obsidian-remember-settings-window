@@ -1,0 +1,13 @@
+node_modules/
+dist/
+data.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

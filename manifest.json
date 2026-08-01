@@ -1,0 +1,10 @@
+{
+    "id": "obsidian-remember-settings-window",
+    "name": "Remember Settings Window",
+    "version": "1.0.0",
+    "minAppVersion": "1.13.0",
+    "description": "Remember and restore the size and position of the Obsidian settings popout window. 记住并恢复Obsidian设置独立窗口的尺寸和位置。",
+    "author": "Xzhi",
+    "authorUrl": "https://github.com/GitHub-Xzhi/",
+    "isDesktopOnly": true
+}

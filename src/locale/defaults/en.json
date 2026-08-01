@@ -1,0 +1,16 @@
+{
+    "_displayName": "English",
+    "settingRememberSize": "Remember window size after resizing",
+    "settingRememberSizeDesc": "When enabled, the settings window size will be remembered (stored in window-geometry.json) and restored next time.",
+    "settingRememberPosition": "Remember window position after moving",
+    "settingRememberPositionDesc": "When enabled, the settings window position will be remembered (stored in window-geometry.json) and restored next time.",
+    "defaultSizeHeader": "Default window size",
+    "defaultSizeDesc": "When \"Remember window size after resizing\" is off, the following dimensions are used as the default window size.",
+    "defaultWidth": "Default width",
+    "defaultHeight": "Default height",
+    "language": "Language",
+    "languageDesc": "Select the display language for this plugin.",
+    "languageAuto": "Auto (follow system)",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+}
