@@ -412,13 +412,11 @@ export default class RememberSettingsWindowPlugin extends Plugin {
         }
 
         this.origSettingOpen = setting.open.bind(setting);
-        // eslint-disable-next-line @typescript-eslint/no-this-alias
-        const self = this;
 
-        setting.open = function (this: any, ...args: any[]) {
-            self.settingsOpening = true;
-            const result = self.origSettingOpen!.apply(this, args);
-            self.startDetecting();
+        setting.open = (...args: any[]) => {
+            this.settingsOpening = true;
+            const result = this.origSettingOpen!.apply(setting, args);
+            this.startDetecting();
             return result;
         };
     }
@@ -647,7 +645,9 @@ class SettingsWindowSettingTab extends PluginSettingTab {
             );
 
         // ── 默认窗口大小 ──
-        containerEl.createEl("h4", { text: tr("defaultSizeHeader") });
+        new Setting(containerEl)
+            .setName(tr("defaultSizeHeader"))
+            .setHeading();
         containerEl.createEl("p", {
             text: tr("defaultSizeDesc"),
             cls: "setting-item-description",
