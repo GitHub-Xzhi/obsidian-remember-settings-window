@@ -4,6 +4,10 @@
 
 An [Obsidian](https://obsidian.md) plugin that remembers the size and position of the **settings popout window** (introduced in Obsidian 1.13.0), and restores them automatically next time you open it.
 
+## 👀 Preview
+
+![](assets/README/image-20260802013030442.png)
+
 ## 📖 Background
 
 Starting from Obsidian 1.13.0, Settings can open in a separate window instead of a modal dialog (toggle via **Settings → Interface → Open settings in new window**). However, the window always opens with a default size and position, and any manual adjustments are lost after closing.
