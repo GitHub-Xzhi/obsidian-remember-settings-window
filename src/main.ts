@@ -6,6 +6,46 @@ import {
     debounce,
 } from "obsidian";
 
+/**
+ * 内置默认语言数据
+ * 仅用于首次安装时自动创建 locale/en.json 和 locale/zh-cn.json
+ * 后续由 locale/ 目录中的 JSON 文件接管，用户可自由编辑
+ */
+const LOCALE_DEFAULTS: Record<string, Record<string, string>> = {
+    "en": {
+        "_displayName": "English",
+        "settingRememberSize": "Remember window size after resizing",
+        "settingRememberSizeDesc": "When enabled, the settings window size will be remembered (stored in window-geometry.json) and restored next time.",
+        "settingRememberPosition": "Remember window position after moving",
+        "settingRememberPositionDesc": "When enabled, the settings window position will be remembered (stored in window-geometry.json) and restored next time.",
+        "defaultSizeHeader": "Default window size",
+        "defaultSizeDesc": "When \"Remember window size after resizing\" is off, the following dimensions are used as the default window size.",
+        "defaultWidth": "Default width",
+        "defaultHeight": "Default height",
+        "language": "Language",
+        "languageDesc": "Select the display language for this plugin.",
+        "languageAuto": "Auto (follow system)",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+    },
+    "zh-cn": {
+        "_displayName": "简体中文",
+        "settingRememberSize": "记住拖拽调整后的窗口大小",
+        "settingRememberSizeDesc": "开启后，拖拽调整设置窗口大小的操作会被记住（存储在 window-geometry.json），下次打开时使用该尺寸。",
+        "settingRememberPosition": "记住拖拽调整后的窗口位置",
+        "settingRememberPositionDesc": "开启后，拖拽移动设置窗口位置的操作会被记住（存储在 window-geometry.json），下次打开时使用该位置。",
+        "defaultSizeHeader": "窗口默认大小",
+        "defaultSizeDesc": "当「记住拖拽调整后的窗口大小」未开启时，使用以下尺寸作为设置窗口的默认大小。",
+        "defaultWidth": "默认宽度",
+        "defaultHeight": "默认高度",
+        "language": "语言",
+        "languageDesc": "选择插件的显示语言。",
+        "languageAuto": "自动（跟随系统）",
+        "enabled": "已启用",
+        "disabled": "已禁用",
+    },
+};
+
 // ═══════════════════════════════════════════════════════════════════
 //  Electron 类型声明（Obsidian 基于 Electron，此处声明窗口 API 的类型）
 // ═══════════════════════════════════════════════════════════════════
@@ -229,6 +269,27 @@ export default class RememberSettingsWindowPlugin extends Plugin {
         } catch (e) {
             console.warn("[RememberSettingsWindow] 读取语言目录失败:", e);
             return;
+        }
+
+        // 如果目录中没有 JSON 文件，写入内置默认语言文件
+        const hasJson = listed.files.some((f: string) => f.endsWith(".json"));
+        if (!hasJson) {
+            for (const [code, translations] of Object.entries(LOCALE_DEFAULTS)) {
+                try {
+                    await adapter.write(
+                        `${localeDir}/${code}.json`,
+                        JSON.stringify(translations, null, 4),
+                    );
+                } catch (e) {
+                    console.warn(`[RememberSettingsWindow] 写入默认语言文件 ${code}.json 失败:`, e);
+                }
+            }
+            // 重新列出文件
+            try {
+                listed = await adapter.list(localeDir);
+            } catch {
+                return;
+            }
         }
 
         // 清空并重新加载所有 JSON 文件
